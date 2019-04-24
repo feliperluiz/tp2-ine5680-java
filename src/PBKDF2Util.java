@@ -22,8 +22,7 @@ public class PBKDF2Util {
      * @param iterations
      * @return
      */
-    public static String generateDerivedKey(
-            String password, String salt, Integer iterations) {
+    public static String generateDerivedKey(String password, String salt, Integer iterations) {
         PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt.getBytes(), iterations, 128);
         SecretKeyFactory pbkdf2 = null;
         String derivedPass = null;
@@ -47,6 +46,11 @@ public class PBKDF2Util {
     }
 
     public static void main(String args[]) throws NoSuchAlgorithmException {
+        
+        Pessoa alice = new Pessoa(0L, "Alice");
+        Pessoa bob = new Pessoa(1L, "Bob");
+        
+        
         PBKDF2Util obj = new PBKDF2Util();        
         
         String senha;
@@ -61,7 +65,7 @@ public class PBKDF2Util {
         salt = obj.getSalt();
         
         System.out.println("Senha original = " + senha);
-        System.out.println("Sal gerado = " + salt);
+        System.out.println("Salt gerado = " + salt);
         System.out.println("Numero de iteracoes = " + it);
         
         String chaveDerivada = generateDerivedKey(senha, salt, it);
