@@ -107,7 +107,8 @@ public class PBKDF2Util {
     
     public static void storeSecretKey(String storeFilename, char[] storePassword, String alias, char[] keyPass, SecretKey secretKey)
             throws GeneralSecurityException, IOException {
-        KeyStore keyStore = KeyStore.getInstance("PBKDF2WithHmacSHA512");
+        KeyStore keyStore = KeyStore.getInstance("BCFKS", "BCFIPS");
+        
         keyStore.load(new FileInputStream(storeFilename), storePassword);
         //keyStore.load(null, null);
 
