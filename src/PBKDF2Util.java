@@ -21,6 +21,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.PBEParameterSpec;
 import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 
 public class PBKDF2Util {
@@ -30,6 +31,7 @@ public class PBKDF2Util {
       public static void main(String args[]) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeySpecException, GeneralSecurityException, IOException {
         
         //Adiciona Provider
+        //Security.addProvider(new BouncyCastleProvider());
         Security.addProvider(new BouncyCastleFipsProvider());
         
         //Instancia objetos Pessoa
@@ -58,51 +60,44 @@ public class PBKDF2Util {
             default:
             System.out.println("Opção inválida!");
         }
+                 
+        if (umaPessoa != null) {
+            if (umaPessoa.getNome().equals("Alice")) {
+                System.out.println("Digite a senha para sua chave: ");
+                senhaChave = input.nextLine();
+
+                System.out.println("Digite a senha para armazenamento sua chave: ");
+                senhaArmazenamentoKeyStore = input.nextLine();
+
+                //Criptografia simétrica autenticada
+                salt = obj.getSalt();
+                PBEKeySpec spec = new PBEKeySpec(senhaChave.toCharArray(), salt.getBytes(), it, 128);             
+                SecretKeyFactory pbkdf2 = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512", "BCFIPS");
+                SecretKey sk = pbkdf2.generateSecret(spec);
+                String chaveDerivada = Hex.encodeHexString(sk.getEncoded());
+                System.out.println("Chave derivada da senha gerada: " + chaveDerivada);
+
+                //Criando IV
+                SecureRandom random = new SecureRandom();
+                byte iv[] = new byte[16];
+                random.nextBytes(iv);
+                System.out.println("IV gerado: " + Hex.encodeHexString(iv));
+
+                storeSecretKey("meukeystore.bcfks", senhaArmazenamentoKeyStore.toCharArray(), senhaChave.toCharArray(), sk, iv);
+
+                String mensagem1 = "Olá Bob!!! Quer conversar comigo?";
+                String mensagemCifrada = obj.cifraMensagem(mensagem1, sk, iv);
+
+                System.out.println("Mensagem original: " + mensagem1);
+                System.out.println("Mensagem cifrada: " + mensagemCifrada);
+            } else {
+                
+            }
+        }
         
-        //Alice:     
-        if (umaPessoa != null && umaPessoa.getNome().equals("Alice")) {
-            System.out.println("Digite a senha para sua chave: ");
-            senhaChave = input.nextLine();
-            
-            System.out.println("Digite a senha para armazenamento sua chave: ");
-            senhaArmazenamentoKeyStore = input.nextLine();
-            
-            //Criando chave derivada
-            salt = obj.getSalt();
-            PBEKeySpec spec = new PBEKeySpec(senhaChave.toCharArray(), salt.getBytes(), it, 128);
-                    
-            SecretKeyFactory pbkdf2 = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512");
-            SecretKey sk = pbkdf2.generateSecret(spec);
-            String chaveDerivada = Hex.encodeHexString(sk.getEncoded());
-            System.out.println("Chave derivada da senha gerada = " + chaveDerivada );
-            
-            //Criando IV
-            byte iv[] = new byte[16];
-            SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
-            random.nextBytes(iv);
-            System.out.println("IV gerado = " + Utils.toHex(iv));
-            
-            storeSecretKey("meukeystore.bcfks", senhaArmazenamentoKeyStore.toCharArray(), senhaChave.toCharArray(), sk, iv);
-       
-            String mensagem1 = "Olá Bob!!! Quer conversar comigo?";
-            String mensagemCifrada = obj.cifraMensagem(mensagem1, sk, iv);
-            
-            System.out.println("Mensagem original: " + mensagem1);
-            System.out.println("Mensagem cifrada: " + mensagemCifrada);
-        }   
      }
-        
-    /*Usado para gerar o salt  */
-    public String getSalt() throws NoSuchAlgorithmException {
-        SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
-        //SecureRandom sr = new SecureRandom();
-        byte[] salt = new byte[16];
-        sr.nextBytes(salt);
-        return Hex.encodeHexString(salt);
-    }
    
     public String cifraMensagem(String mensagem, SecretKey key, byte[] iv) throws NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException, InvalidKeyException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException {
-       Security.addProvider(new BouncyCastleFipsProvider());
        cipher = Cipher.getInstance("AES/GCM/NoPadding", "BCFIPS");
        cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(iv));
        byte[] enc = cipher.doFinal(mensagem.getBytes());
@@ -111,7 +106,7 @@ public class PBKDF2Util {
     }
     
     public static void storeSecretKey(String storeFilename, char[] storePassword, char[] keyPass, SecretKey secretKey, byte[] iv) throws GeneralSecurityException, IOException {
-        KeyStore keyStore = KeyStore.getInstance("JCEKS");        
+        KeyStore keyStore = KeyStore.getInstance("JCEKS"); //https://stackoverflow.com/questions/39431198/multi-platform-java-keystore        
         keyStore.load(null, null); //Cria do zero o KeyStore
         keyStore.store(new FileOutputStream("meukeystore.bcfks"), storePassword); //Salva o KeyStore com a senha passada pelo usuário
 
@@ -119,5 +114,15 @@ public class PBKDF2Util {
         keyStore.setKeyEntry("pbkdf2", secretKey, keyPass, null);
         keyStore.setKeyEntry("iv", iv, null);
         keyStore.store(new FileOutputStream("meukeystore.bcfks"), storePassword);
+    }
+    
+           
+    /*Usado para gerar o salt  */
+    public String getSalt() throws NoSuchAlgorithmException {
+        SecureRandom sr = new SecureRandom();
+        //SecureRandom sr = new SecureRandom();
+        byte[] salt = new byte[16];
+        sr.nextBytes(salt);
+        return Hex.encodeHexString(salt);
     }
 }
