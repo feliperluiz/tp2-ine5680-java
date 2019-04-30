@@ -12,6 +12,15 @@ public class Pessoa {
     
     private Long cpf;
     private String nome;
+    private String ultimaMensagemCifrada;
+
+    public String getUltimaMensagemCifrada() {
+        return ultimaMensagemCifrada;
+    }
+
+    public void setUltimaMensagemCifrada(String ultimaMensagemCifrada) {
+        this.ultimaMensagemCifrada = ultimaMensagemCifrada;
+    }
     
     public Pessoa(Long cpf, String nome) {
         this.cpf=cpf;
