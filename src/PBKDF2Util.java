@@ -7,6 +7,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.KeyStore;
+import java.security.KeyStore.Entry;
 import java.security.KeyStoreException;
 import org.apache.commons.codec.binary.Hex;
 
@@ -26,13 +27,10 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.PBEParameterSpec;
 import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 
 public class PBKDF2Util {
-    
-    private Cipher cipher;
-
+   
       public static void main(String args[]) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeySpecException, GeneralSecurityException, IOException {
         
         //Adiciona Provider
@@ -48,7 +46,6 @@ public class PBKDF2Util {
         String senhaChave;
         String senhaArmazenamentoKeyStore;
         String opcao;
-        String salt;
         int it = 10000;
         
         Scanner input = new Scanner(System.in);                 
@@ -60,25 +57,35 @@ public class PBKDF2Util {
         senhaArmazenamentoKeyStore = input.nextLine();
 
         //Criptografia simétrica autenticada
-        salt = obj.getSalt();
-        PBEKeySpec spec = new PBEKeySpec(senhaChave.toCharArray(), salt.getBytes(), it, 128);             
+        SecureRandom sr = new SecureRandom();
+        byte[] salt = new byte[128];
+        sr.nextBytes(salt);
+        //Hex.encodeHexString(salt);
+        
+        PBEKeySpec spec = new PBEKeySpec(senhaChave.toCharArray(), salt, it, 128);             
         SecretKeyFactory pbkdf2 = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512", "BCFIPS");
         SecretKey sk = pbkdf2.generateSecret(spec);
         String chaveDerivada = Hex.encodeHexString(sk.getEncoded());
         System.out.println("Chave derivada da senha gerada: " + chaveDerivada);
 
         SecureRandom random = new SecureRandom();
-        byte iv[] = new byte[16];
+        byte iv[] = new byte[64];
         random.nextBytes(iv);
+        
+        
+        
+        
         System.out.println("IV gerado: " + Hex.encodeHexString(iv));
 
         storeSecretKey("meukeystore.bcfks", senhaArmazenamentoKeyStore.toCharArray(), senhaChave.toCharArray(), sk, iv);
 
         String mensagem1 = "Olá Bob!!! Quer conversar comigo?";
-        alice.setUltimaMensagemCifrada(obj.cifraMensagem(mensagem1, sk, iv));
+        
+        IvParameterSpec ivParameter = new IvParameterSpec(iv);
+        alice.setUltimaMensagemCifrada(obj.cifraMensagem(mensagem1, sk, ivParameter));
 
         System.out.println("Mensagem original: " + mensagem1);
-        System.out.println("Mensagem cifrada: " + alice.getUltimaMensagemCifrada());
+        System.out.println("Mensagem cifrada: " + Hex.encodeHexString(alice.getUltimaMensagemCifrada()));
 
         //Bob
         
@@ -89,27 +96,25 @@ public class PBKDF2Util {
         senhaArmazenamentoKeyStore = input.nextLine();
 
         SecretKey key = loadSecretKey(senhaArmazenamentoKeyStore.toCharArray(), senhaChave.toCharArray() );
-        byte[] ivLoaded = loadSecretIV(senhaArmazenamentoKeyStore.toCharArray()); //Problema para carregar IV
+        //byte[] ivLoaded = loadSecretIV(senhaArmazenamentoKeyStore.toCharArray(), senhaChave.toCharArray() ); //Problema para carregar IV
 
-        System.out.println("Bob: mensagem cifrada recebida: " + alice.getUltimaMensagemCifrada());
-        System.out.println("Bob: mensagem decifrada recebida: " + obj.decifraMensagem(alice.getUltimaMensagemCifrada(), key, ivLoaded));
+        System.out.println("Bob: mensagem cifrada recebida: " + Hex.encodeHexString(alice.getUltimaMensagemCifrada()));
+        System.out.println("Bob: mensagem decifrada recebida: " + obj.decifraMensagem(alice.getUltimaMensagemCifrada(), key, ivParameter));
             
     }
         
-     
-   
-    public String cifraMensagem(String mensagem, SecretKey key, byte[] iv) throws NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException, InvalidKeyException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException {
-       cipher = Cipher.getInstance("AES/GCM/NoPadding", "BCFIPS");
-       cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(iv));
+    public byte[] cifraMensagem(String mensagem, SecretKey key, IvParameterSpec iv) throws NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException, InvalidKeyException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException {
+       Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", "BCFIPS");
+       cipher.init(Cipher.ENCRYPT_MODE, key, iv);
        byte[] enc = cipher.doFinal(mensagem.getBytes());
-       return Hex.encodeHexString(enc);
+       return enc;
     }
     
-    public String decifraMensagem(String mensagem, SecretKey key, byte[] iv) throws NoSuchAlgorithmException, NoSuchProviderException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
-       cipher = Cipher.getInstance("AES/GCM/NoPadding", "BCFIPS");
-       cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
-       byte[] enc = cipher.doFinal(mensagem.getBytes());
-       return Hex.encodeHexString(enc);
+    public String decifraMensagem(byte[] mensagem, SecretKey key, IvParameterSpec iv) throws NoSuchAlgorithmException, NoSuchProviderException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
+       Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", "BCFIPS");
+       cipher.init(Cipher.DECRYPT_MODE, key, iv);
+       byte[] enc = cipher.doFinal(mensagem);
+       return new String(enc);
     }
     
     public static void storeSecretKey(String storeFilename, char[] storePassword, char[] keyPass, SecretKey secretKey, byte[] iv) throws GeneralSecurityException, IOException {
@@ -118,34 +123,26 @@ public class PBKDF2Util {
         keyStore.store(new FileOutputStream("meukeystore.bcfks"), storePassword); //Salva o KeyStore com a senha passada pelo usuário
 
         keyStore.load(new FileInputStream("meukeystore.bcfks"), storePassword); //Carrega o KeyStore salvo
-        keyStore.setKeyEntry("pbkdf2", secretKey, keyPass, null);
-        keyStore.setKeyEntry("iv", iv, null); //TODO ver como salvar o IV!
+        keyStore.setKeyEntry("pbkdf2", secretKey, keyPass, null);        
         keyStore.store(new FileOutputStream("meukeystore.bcfks"), storePassword);
     }
     
-    public static SecretKey loadSecretKey(char[] storePassword, char[] keyPass) throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException, FileNotFoundException, IOException, CertificateException{
-        KeyStore keyStore = KeyStore.getInstance("JCEKS");
+    public static SecretKey loadSecretKey(char[] storePassword, char[] keyPass) throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException, FileNotFoundException, IOException, CertificateException, NoSuchProviderException{
+        KeyStore keyStore = KeyStore.getInstance("JCEKS"); //JCEKS
         keyStore.load(new FileInputStream("meukeystore.bcfks"), storePassword);
         SecretKey key = (SecretKey) keyStore.getKey("pbkdf2", keyPass);
         System.out.println("Chave = " + Hex.encodeHexString(key.getEncoded()));
         return key;
     }
     
-    public static byte[] loadSecretIV(char[] storePassword) throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException, FileNotFoundException, IOException, CertificateException{
-        KeyStore keyStore = KeyStore.getInstance("JCEKS");
-        keyStore.load(new FileInputStream("meukeystore.bcfks"), storePassword);
-        Key iv = keyStore.getKey("iv", null);
-        System.out.println("IV = " + Hex.encodeHexString(iv.getEncoded()));
-        return iv.getEncoded();
-    }
+//    public static byte[] loadSecretIV(char[] storePassword, char[] keyPass) throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException, FileNotFoundException, IOException, CertificateException{
+//        KeyStore keyStore = KeyStore.getInstance("JCEKS");
+//        keyStore.load(new FileInputStream("meukeystore.bcfks"), storePassword);
+//        Key iv = keyStore.getKey("iv", keyPass);
+//        System.out.println("IV = " + Hex.encodeHexString(iv.getEncoded()));
+//        return iv.getEncoded();
+//    }
     
-           
-    /*Usado para gerar o salt  */
-    public String getSalt() throws NoSuchAlgorithmException {
-        SecureRandom sr = new SecureRandom();
-        byte[] salt = new byte[16];
-        sr.nextBytes(salt);
-        return Hex.encodeHexString(salt);
-    }
+        
     
 }

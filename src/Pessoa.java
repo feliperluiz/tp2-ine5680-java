@@ -12,13 +12,13 @@ public class Pessoa {
     
     private Long cpf;
     private String nome;
-    private String ultimaMensagemCifrada;
+    private byte[] ultimaMensagemCifrada;
 
-    public String getUltimaMensagemCifrada() {
+    public byte[] getUltimaMensagemCifrada() {
         return ultimaMensagemCifrada;
     }
 
-    public void setUltimaMensagemCifrada(String ultimaMensagemCifrada) {
+    public void setUltimaMensagemCifrada(byte[] ultimaMensagemCifrada) {
         this.ultimaMensagemCifrada = ultimaMensagemCifrada;
     }
     
