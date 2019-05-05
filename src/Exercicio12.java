@@ -29,7 +29,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 
-public class PBKDF2Util {
+public class Exercicio12 {
    
       public static void main(String args[]) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeySpecException, GeneralSecurityException, IOException {
         
@@ -42,7 +42,7 @@ public class PBKDF2Util {
         Pessoa bob = new Pessoa(1L, "Bob");
              
         //Declara objetos úteis 
-        PBKDF2Util obj = new PBKDF2Util();        
+        Exercicio12 obj = new Exercicio12();        
         String senhaChave;
         String senhaArmazenamentoKeyStore;
         String opcao;
@@ -71,10 +71,7 @@ public class PBKDF2Util {
         SecureRandom random = new SecureRandom();
         byte iv[] = new byte[64];
         random.nextBytes(iv);
-        
-        
-        
-        
+                
         System.out.println("IV gerado: " + Hex.encodeHexString(iv));
 
         storeSecretKey("meukeystore.bcfks", senhaArmazenamentoKeyStore.toCharArray(), senhaChave.toCharArray(), sk, iv);
